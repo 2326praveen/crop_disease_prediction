@@ -33,17 +33,25 @@ from src.transforms import ImageTransformer
 class RiceLeafDataset(Dataset):
     """Dataset class for rice leaf disease images."""
     
-    def __init__(self, root_dir, transform=None):
+    def __init__(self, root_dir, transform=None, selected_classes=None):
         """
         Args:
             root_dir (str): Directory with disease class subdirectories
             transform (callable, optional): Optional transform to be applied on images
+            selected_classes (list, optional): List of specific class names to include
         """
         self.root_dir = Path(root_dir)
         self.transform = transform
         
         # Get class names from subdirectories
-        self.classes = sorted([d.name for d in self.root_dir.iterdir() if d.is_dir()])
+        all_classes = sorted([d.name for d in self.root_dir.iterdir() if d.is_dir()])
+        
+        # Filter to selected classes if specified
+        if selected_classes:
+            self.classes = [cls for cls in all_classes if cls in selected_classes]
+        else:
+            self.classes = all_classes
+            
         self.class_to_idx = {cls_name: idx for idx, cls_name in enumerate(self.classes)}
         
         # Collect all image paths and labels
@@ -192,13 +200,17 @@ def train_model():
     LEARNING_RATE = 0.001
     VAL_SPLIT = 0.2
     
+    # Select 3 rice leaf disease classes for training
+    SELECTED_CLASSES = ['Bacterialblight', 'Blast', 'Brownspot']
+    
     # Device configuration
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print(f"\nDevice: {device}")
     
     # Load dataset
     print("\nLoading dataset...")
-    dataset_path = base_dir / 'data' / 'rice_leaf_diseases'
+    dataset_path = base_dir / 'datasets' / 'rice_leaf_subset' / 'train'
+    val_dataset_path = base_dir / 'datasets' / 'rice_leaf_subset' / 'val'
     
     # Create ImageTransformer
     image_transformer = get_image_transformer(config)
@@ -207,28 +219,21 @@ def train_model():
     train_transform = image_transformer.get_training_transforms()
     val_transform = image_transformer.get_inference_transforms()
     
-    # Create full dataset
-    full_dataset = RiceLeafDataset(dataset_path, transform=train_transform)
+    # Create train and validation datasets
+    train_dataset_full = RiceLeafDataset(dataset_path, transform=train_transform)
+    val_dataset_full = RiceLeafDataset(val_dataset_path, transform=val_transform)
     
-    print(f"Total samples: {len(full_dataset)}")
+    # Use train dataset for class information
+    full_dataset = train_dataset_full
+    
+    print(f"Training samples: {len(train_dataset_full)}")
+    print(f"Validation samples: {len(val_dataset_full)}")
     print(f"Classes: {full_dataset.classes}")
     print(f"Number of classes: {len(full_dataset.classes)}")
     
-    # Split into train and validation
-    val_size = int(len(full_dataset) * VAL_SPLIT)
-    train_size = len(full_dataset) - val_size
-    
-    train_dataset, val_dataset = random_split(
-        full_dataset, 
-        [train_size, val_size],
-        generator=torch.Generator().manual_seed(42)
-    )
-    
-    # Update validation dataset transform
-    val_dataset.dataset.transform = val_transform
-    
-    print(f"Training samples: {len(train_dataset)}")
-    print(f"Validation samples: {len(val_dataset)}")
+    # Use the prepared datasets directly (no need for random split)
+    train_dataset = train_dataset_full
+    val_dataset = val_dataset_full
     
     # Create data loaders
     train_loader = DataLoader(

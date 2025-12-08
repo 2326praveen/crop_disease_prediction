@@ -1,14 +1,7 @@
 {
   "classes": [
-    "Healthy",
-    "Bacterial Leaf Blight",
-    "Brown Spot",
-    "Leaf Smut",
-    "Bacterial Leaf Streak",
-    "Sheath Blight",
-    "Tungro",
+    "Bacterialblight",
     "Blast",
-    "Hispa",
-    "Leaf Scald"
+    "Brownspot"
   ]
 }
